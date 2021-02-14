@@ -19,29 +19,26 @@ object SchoolsFinderApp {
     val spark = SparkSession.builder().master(master).appName(appName).getOrCreate()
 
     val schoolsDataConfig = config.getConfig("schoolsdata")
-    val constituencyEthnicsDataPath = schoolsDataConfig.getString("constituency_ethnics_data")
 
+    val ethnicsDataConfig = config.getConfig("ethnicsdata")
 
-    val constituencyEthnicsDF = spark.read.option("inferSchema", "true").option("header", true).csv(constituencyEthnicsDataPath)
+    val schoolsDF = getSchoolsData(spark, schoolsDataConfig, "Girls")
 
+    schoolsDF.cache()
 
-    val girlsDF = getSchoolsData(spark, schoolsDataConfig, "Girls")
+    val girls_sutton_DF = schoolsDF.filter(col("Local authority") === "Sutton")
 
-    girlsDF.cache()
+    val girls_bexely_DF = schoolsDF.filter(col("Local authority") === "Bexley")
 
-    val girls_sutton_DF = girlsDF.filter(col("Local authority") === "Sutton")
+    val girls_reading_DF = schoolsDF.filter(col("Local authority") === "Reading")
 
-    val girls_bexely_DF = girlsDF.filter(col("Local authority") === "Bexley")
-
-    val girls_reading_DF = girlsDF.filter(col("Local authority") === "Reading")
-
-    val girls_watford_DF = girlsDF.filter(col("Local authority") === "Hertfordshire").
+    val girls_watford_DF = schoolsDF.filter(col("Local authority") === "Hertfordshire").
       filter(col("constituency") === "Watford")
 
-    val girls_buckinghamshire_DF = girlsDF.filter(col("Local authority") === "Buckinghamshire").
+    val girls_buckinghamshire_DF = schoolsDF.filter(col("Local authority") === "Buckinghamshire").
       filter(col("constituency") === "Chesham and Amersham")
 
-    val girls_dartford_DF = girlsDF.filter(col("Local authority") === "Kent").
+    val girls_dartford_DF = schoolsDF.filter(col("Local authority") === "Kent").
       filter(col("constituency") === "Dartford")
 
     println("sutton")
@@ -62,20 +59,14 @@ object SchoolsFinderApp {
     println("dartford")
     girls_dartford_DF.show()
 
+    val ethnicsDartfordData = getEthnicsDataByConstituency(spark, ethnicsDataConfig, "dartford")
 
-    val dartford_constituencyEthnicsDF = constituencyEthnicsDF.select("ConstituencyName", "PopWhiteConst%",
-      "PopAsianConst%", "PopBlackConst%").filter(lower(col("ConstituencyName")) === "dartford")
-
-    dartford_constituencyEthnicsDF.show()
-
-    /*
-    girls_dartford_DF.join(dartford_constituencyEthnicsDF ,
-      girls_dartford_DF.col("constituency") === dartford_constituencyEthnicsDF.col("ConstituencyName")).show()
-    */
+    girls_dartford_DF.join(ethnicsDartfordData,
+      girls_dartford_DF.col("constituency") === ethnicsDartfordData.col("ConstituencyName")).show()
   }
 
   //gender either Boys, Girls or Mixed
-  def getSchoolsData(spark : SparkSession, schoolsDataConfig : Config, gender :String = "Girls") = {
+  def getSchoolsData(spark: SparkSession, schoolsDataConfig: Config, gender: String = "Girls") = {
 
     val schoolsDataPath = schoolsDataConfig.getString("school_information")
     val schoolInspectionDataPath = schoolsDataConfig.getString("school_inspection")
@@ -98,5 +89,14 @@ object SchoolsFinderApp {
 
     schoolsDF
 
+  }
+
+  def getEthnicsDataByConstituency(spark: SparkSession, ethnicsDataConfig: Config, constituencyName: String) = {
+
+    val ethnicsDataPath = ethnicsDataConfig.getString("constituency_ethnics_data")
+    val constituencyEthnicsDF = spark.read.option("inferSchema", "true").option("header", true).csv(ethnicsDataPath)
+
+    constituencyEthnicsDF.select("ConstituencyName", "PopWhiteConst%",
+      "PopAsianConst%", "PopBlackConst%").filter(lower(col("ConstituencyName")) === constituencyName)
   }
 }
