@@ -2,7 +2,7 @@ package org.schools
 
 import java.io.File
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
@@ -19,24 +19,13 @@ object SchoolsFinderApp {
     val spark = SparkSession.builder().master(master).appName(appName).getOrCreate()
 
     val schoolsDataConfig = config.getConfig("schoolsdata")
-    val schoolsDataPath = schoolsDataConfig.getString("school_information")
-    val schoolInspectionDataPath = schoolsDataConfig.getString("school_inspection")
     val constituencyEthnicsDataPath = schoolsDataConfig.getString("constituency_ethnics_data")
 
-    val schoolInformationDF = spark.read.option("inferSchema", "true").option("header", true).csv(schoolsDataPath)
-    val schoolInspectionDF = spark.read.option("inferSchema", "true").option("header", true).csv(schoolInspectionDataPath)
+
     val constituencyEthnicsDF = spark.read.option("inferSchema", "true").option("header", true).csv(constituencyEthnicsDataPath)
 
-    val girlsDF = schoolInspectionDF.
-      select("URN", "School name", "Ofsted phase", "Designated religious character",
-        "Local authority", "Total number of pupils", "Postcode",
-        "Overall effectiveness", "Total number of pupils", "Parliamentary constituency").
-      join(schoolInformationDF.select("URN", "GENDER"), "URN").
-      filter(col("Ofsted phase") === "Secondary").
-      filter(col("GENDER") === "Girls").
-      withColumnRenamed("Designated religious character", "religious").
-      withColumnRenamed("Total number of pupils", "Strength").
-      withColumnRenamed("Parliamentary constituency", "constituency")
+
+    val girlsDF = getSchoolsData(spark, schoolsDataConfig, "Girls")
 
     girlsDF.cache()
 
@@ -83,5 +72,31 @@ object SchoolsFinderApp {
     girls_dartford_DF.join(dartford_constituencyEthnicsDF ,
       girls_dartford_DF.col("constituency") === dartford_constituencyEthnicsDF.col("ConstituencyName")).show()
     */
+  }
+
+  //gender either Boys, Girls or Mixed
+  def getSchoolsData(spark : SparkSession, schoolsDataConfig : Config, gender :String = "Girls") = {
+
+    val schoolsDataPath = schoolsDataConfig.getString("school_information")
+    val schoolInspectionDataPath = schoolsDataConfig.getString("school_inspection")
+
+
+    val schoolInspectionDF = spark.read.option("inferSchema", "true").option("header", true).csv(schoolInspectionDataPath)
+    val schoolInformationDF = spark.read.option("inferSchema", "true").option("header", true).csv(schoolsDataPath)
+
+
+    val schoolsDF = schoolInspectionDF.
+      select("URN", "School name", "Ofsted phase", "Designated religious character",
+        "Local authority", "Total number of pupils", "Postcode",
+        "Overall effectiveness", "Total number of pupils", "Parliamentary constituency").
+      join(schoolInformationDF.select("URN", "GENDER"), "URN").
+      filter(col("Ofsted phase") === "Secondary").
+      filter(col("GENDER") === gender).
+      withColumnRenamed("Designated religious character", "religious").
+      withColumnRenamed("Total number of pupils", "Strength").
+      withColumnRenamed("Parliamentary constituency", "constituency")
+
+    schoolsDF
+
   }
 }
