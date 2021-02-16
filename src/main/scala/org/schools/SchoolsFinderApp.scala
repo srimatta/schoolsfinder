@@ -22,7 +22,9 @@ object SchoolsFinderApp {
 
     val ethnicsDataConfig = config.getConfig("ethnicsdata")
 
-    val schoolsDF = getSchoolsData(spark, schoolsDataConfig, "Girls")
+    val schoolsDF = SchoolDataService.getSchoolsData(spark, schoolsDataConfig, "Girls")
+
+    val ethnicsDartfordData = EthnicDataService.getEthnicsDataByConstituency(spark, ethnicsDataConfig, "dartford")
 
     schoolsDF.cache()
 
@@ -59,44 +61,8 @@ object SchoolsFinderApp {
     println("dartford")
     girls_dartford_DF.show()
 
-    val ethnicsDartfordData = getEthnicsDataByConstituency(spark, ethnicsDataConfig, "dartford")
-
     girls_dartford_DF.join(ethnicsDartfordData,
       girls_dartford_DF.col("constituency") === ethnicsDartfordData.col("ConstituencyName")).show()
   }
 
-  //gender either Boys, Girls or Mixed
-  def getSchoolsData(spark: SparkSession, schoolsDataConfig: Config, gender: String = "Girls") = {
-
-    val schoolsDataPath = schoolsDataConfig.getString("school_information")
-    val schoolInspectionDataPath = schoolsDataConfig.getString("school_inspection")
-
-
-    val schoolInspectionDF = spark.read.option("inferSchema", "true").option("header", true).csv(schoolInspectionDataPath)
-    val schoolInformationDF = spark.read.option("inferSchema", "true").option("header", true).csv(schoolsDataPath)
-
-
-    val schoolsDF = schoolInspectionDF.
-      select("URN", "School name", "Ofsted phase", "Designated religious character",
-        "Local authority", "Total number of pupils", "Postcode",
-        "Overall effectiveness", "Total number of pupils", "Parliamentary constituency").
-      join(schoolInformationDF.select("URN", "GENDER"), "URN").
-      filter(col("Ofsted phase") === "Secondary").
-      filter(col("GENDER") === gender).
-      withColumnRenamed("Designated religious character", "religious").
-      withColumnRenamed("Total number of pupils", "Strength").
-      withColumnRenamed("Parliamentary constituency", "constituency")
-
-    schoolsDF
-
-  }
-
-  def getEthnicsDataByConstituency(spark: SparkSession, ethnicsDataConfig: Config, constituencyName: String) = {
-
-    val ethnicsDataPath = ethnicsDataConfig.getString("constituency_ethnics_data")
-    val constituencyEthnicsDF = spark.read.option("inferSchema", "true").option("header", true).csv(ethnicsDataPath)
-
-    constituencyEthnicsDF.select("ConstituencyName", "PopWhiteConst%",
-      "PopAsianConst%", "PopBlackConst%").filter(lower(col("ConstituencyName")) === constituencyName)
-  }
 }
