@@ -7,7 +7,7 @@ import org.apache.spark.sql.functions.col
 object SchoolDataService {
 
   //gender either Boys, Girls or Mixed
-  def getSchoolsData(spark: SparkSession, schoolsDataConfig: Config, gender: String = "Girls") = {
+  def getSchoolsData(spark: SparkSession, schoolsDataConfig: Config, gender: String = "Girls", ofstedPhase: String = "Secondary") = {
 
     val schoolsDataPath = schoolsDataConfig.getString("school_information")
     val schoolInspectionDataPath = schoolsDataConfig.getString("school_inspection")
@@ -22,7 +22,7 @@ object SchoolDataService {
         "Local authority", "Total number of pupils", "Postcode",
         "Overall effectiveness", "Parliamentary constituency").
       join(schoolInformationDF.select("URN", "GENDER"), "URN").
-      filter(col("Ofsted phase") === "Secondary").
+      filter(col("Ofsted phase") === ofstedPhase).
       filter(col("GENDER") === gender).
       withColumnRenamed("Designated religious character", "religious").
       withColumnRenamed("Total number of pupils", "Strength").
