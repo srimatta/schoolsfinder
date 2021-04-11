@@ -20,7 +20,7 @@ object SchoolDataService {
     val schoolsDF = schoolInspectionDF.
       select("URN", "School name", "Ofsted phase", "Designated religious character",
         "Local authority", "Total number of pupils", "Postcode",
-        "Overall effectiveness", "Total number of pupils", "Parliamentary constituency").
+        "Overall effectiveness", "Parliamentary constituency").
       join(schoolInformationDF.select("URN", "GENDER"), "URN").
       filter(col("Ofsted phase") === "Secondary").
       filter(col("GENDER") === gender).
